@@ -203,11 +203,11 @@ WHERE UniqueID IN (
 
 
 alter table PortfolioProject.dbo.NashvilleHousing
-drop column OwnerAddress, TaxDistrict, PropertyAddress
+drop column OwnerAddress, TaxDistrict, PropertyAddress;
 
 
 select *
-from PortfolioProject.dbo.NashvilleHousing
+from PortfolioProject.dbo.NashvilleHousing;
 
 
 -- The data has now been cleaned and can be used for visualizations
