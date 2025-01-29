@@ -282,8 +282,6 @@ From CovidDeaths dea
 Join CovidVaccinations vac
     on dea.location = vac.location
     and dea.DateOnly = vac.DateOnly
---Where dea.continent is not null
---Order by 2,3;
 
 select *, (CAST(CASE 
             WHEN rolling_ppl_vaccinated is null THEN 0 
