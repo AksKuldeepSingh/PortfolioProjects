@@ -1,11 +1,8 @@
--- Data Cleaning in MySQL --
+-- Data Cleaning Project in MySQL --
 
--- The layoffs table contains layoffs data for various companies from all over the world. It includes information such as industry, total and percentage of 
--- people laid off, date laid off, funds raised by the company and the stage. 
+USE world_layoffs;
 
-SELECT *
-FROM layoffs
-;
+SELECT * FROM layoffs;
 
 -- In this project I carry out the following:
 -- 1. Remove Duplicates
@@ -17,28 +14,16 @@ FROM layoffs
 -- Staging table is important because raw data contains many inconsistencies and it needs to be cleaned and transformed into the desired format
 -- before being moved to the production tables. The data is separated from the main database until its ready to be incorporated. 
 
-CREATE TABLE layoffs_staging 
-LIKE layoffs
-;
+CREATE TABLE layoffs_staging LIKE layoffs;
 
--- The staging table was created but it reamins empty until data is loaded into it. 
 
-SELECT *
-FROM layoffs_staging
-;
+SELECT * FROM layoffs_staging;
 
-INSERT layoffs_staging
-SELECT *
-From layoffs
-;
+INSERT INTO layoffs_staging
+SELECT * From layoffs;
 
--- Now the staging table has been populated using the data from layoffs
+SELECT * FROM layoffs_staging;
 
-SELECT *
-FROM layoffs_staging
-;
-
--- CTE is used to create a temporary result set without altering the staging data. The result displays duplicate rows. 
 
 WITH duplicate_cte AS
 (
@@ -47,198 +32,172 @@ ROW_NUMBER() OVER(
 PARTITION BY company, location, industry, total_laid_off, percentage_laid_off, `date`, stage, country, funds_raised_millions) AS row_num
 FROM layoffs_staging
 )
-SELECT *
-FROM duplicate_cte
-WHERE row_num>1
-;
+SELECT * FROM duplicate_cte
+WHERE row_num > 1;
+-- It assigns a row number to each duplicate row (based on those listed columns), restarting from 1 for each identical group.
 
-SELECT *
-FROM layoffs_staging
-WHERE company='Casper'
-;
 
--- Creating a second staging table to filter duplicate rows --
+SELECT * FROM layoffs_staging
+WHERE company= 'Casper';
 
-CREATE TABLE `layoffs_staging2` (
+SELECT * FROM layoffs_staging
+WHERE percentage_laid_off LIKE "_.____";
+
+
+CREATE TABLE `layoffs_staging_2` (
   `company` text,
   `location` text,
   `industry` text,
-  `total_laid_off` int DEFAULT NULL,
-  `percentage_laid_off` DECIMAL(5,4),
+  `total_laid_off` INT DEFAULT NULL,
+  `percentage_laid_off` DECIMAL(5, 4),
   `date` text,
   `stage` text,
   `country` text,
-  `funds_raised_millions` int DEFAULT NULL, 
+  `funds_raised_millions` INT DEFAULT NULL, 
   `row_num` INT
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
-;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
-INSERT INTO layoffs_staging2 
+SELECT * FROM layoffs_staging_2;
+-- table has been created
+
+INSERT INTO layoffs_staging_2 
 SELECT *,
 ROW_NUMBER() OVER(
 PARTITION BY company, location, industry, total_laid_off, percentage_laid_off, `date`, stage, country, funds_raised_millions) AS row_num
-FROM layoffs_staging
-;
+FROM layoffs_staging;
 
-SELECT *
-FROM layoffs_staging2
-WHERE row_num>1
-;
+SELECT * FROM layoffs_staging_2
+WHERE row_num > 1;
 
--- Deleting the duplicate rows --
 
-DELETE
-FROM layoffs_staging2
-WHERE row_num>1
-;
+DELETE FROM layoffs_staging_2
+WHERE company = "casper" AND row_num > 1;
+SELECT * FROM layoffs_staging_2 WHERE company = "casper";
 
--- Duplicates have been removed --
 
-SELECT *
-FROM layoffs_staging2
-;
+DELETE FROM layoffs_staging_2
+WHERE row_num > 1;
+SELECT * FROM layoffs_staging_2
+WHERE row_num > 1;
+-- Duplicate rows have been deleted
 
--- Standardizing Data --
 
--- TRIM removes extra spaces at the start or end --
+delete from layoffs_staging_2 where company = "casper" and total_laid_off IS NULL;
+SELECT * FROM layoffs_staging_2 where company = "casper";
+
+
+-- Standardizing Data
+
 
 SELECT company, TRIM(company)
-FROM layoffs_staging2
-;
+FROM layoffs_staging_2;
 
--- Updating the staging table with the trimmed column --
 
-UPDATE layoffs_staging2
-SET company=TRIM(company)
-;
+UPDATE layoffs_staging_2
+SET company = TRIM(company);
 
-SELECT *
-FROM layoffs_staging2
-WHERE industry LIKE 'Crypto%'
-;
 
--- Crypto, CryptoCurrency and Crpyto Currency are the same. We need to standardize so that we it doesn't cause problems in exploratory analysis --
+SELECT * FROM layoffs_staging_2
+WHERE industry LIKE 'Crypto%';
 
-SELECT DISTINCT industry
-FROM layoffs_staging2;
-UPDATE layoffs_staging2
+
+UPDATE layoffs_staging_2
 SET industry = 'Crypto'
-WHERE industry LIKE 'Crypto%'
-;
+WHERE industry LIKE 'crypto%';
+SELECT distinct industry
+FROM layoffs_staging_2
+where industry LIKE "crypto%";
 
--- All are now named Crypto --
 
--- USA. becomes USA --
+SELECT distinct country FROM layoffs_staging_2 where country like "United states%";
 SELECT DISTINCT country, TRIM(TRAILING '.' FROM country)
-FROM layoffs_staging2
-ORDER BY 1
-;
+FROM layoffs_staging_2
+ORDER BY country asc;
+-- Trailing means something that comes at the end of a value or string (the opposite of leading).
 
--- Only updates the rows where the country column starts with United States --
-
-UPDATE layoffs_staging2
+UPDATE layoffs_staging_2
 SET country = TRIM(TRAILING '.' FROM country)
-WHERE country LIKE 'United States%'
-;
+WHERE country LIKE 'United States%';
+SELECT distinct country FROM layoffs_staging_2 where country like "United states%";
 
 
-SELECT *
-FROM layoffs_staging2
-;
+-- Converting text to date
 
--- Converts the date column which was stored as a text to date type --
+SELECT * FROM layoffs_staging_2;
 
 SELECT `date`,
-STR_TO_DATE (`date`, '%m/%d/%Y')
-FROM layoffs_staging2
-;
+STR_TO_DATE(`date`, '%m/%d/%Y')
+FROM layoffs_staging_2;
 
-UPDATE layoffs_staging2
-SET `date`=STR_TO_DATE (`date`, '%m/%d/%Y')
-;
+UPDATE layoffs_staging_2
+SET `date`=STR_TO_DATE (`date`, '%m/%d/%Y');
 
-SELECT `date`
-FROM layoffs_staging2
-;
+SELECT `date` FROM layoffs_staging_2;
 
-ALTER TABLE layoffs_staging2
-MODIFY COLUMN `date` DATE
-;
+ALTER TABLE layoffs_staging_2
+MODIFY COLUMN `date` DATE;
+
 
 SELECT *
-FROM layoffs_staging2
+FROM layoffs_staging_2
 WHERE total_laid_off IS NULL
-AND percentage_laid_off IS NULL
-;
+AND percentage_laid_off IS NULL;
 
-UPDATE layoffs_staging2
-SET industry=NULL
-WHERE industry=''
-;
+SELECT * FROM layoffs_staging_2 WHERE industry = '';
+-- finds companies for which industry value is blank
 
-SELECT *
-FROM layoffs_staging2
+UPDATE layoffs_staging_2
+SET industry = NULL
+WHERE industry ='';
+
+SELECT * FROM layoffs_staging_2
 WHERE industry IS NULL
-OR industry = ''
-;
+OR industry = '';
 
-SELECT *
-FROM layoffs_staging2
-WHERE company LIKE 'Bally%'
-;
 
--- Self-join to match rows based on the same company and location --
+SELECT * FROM layoffs_staging_2
+WHERE company LIKE 'bally%';
 
+
+SELECT * FROM layoffs_staging_2 WHERE company IS NULL OR location IS NULL;
+
+-- SELF JOIN
 SELECT t1.industry, t2.industry
-FROM layoffs_staging2 t1
-JOIN layoffs_staging2 t2
-ON t1.company=t2.company
-AND t1.location=t2.location
-WHERE (t1.industry IS NULL OR t1.industry='') 
-AND t2.industry IS NOT NULL
-;
+FROM layoffs_staging_2 as t1
+JOIN layoffs_staging_2 as t2
+ON t1.company = t2.company
+AND t1.location = t2.location
+WHERE (t1.industry IS NULL OR t1.industry ='') 
+AND t2.industry IS NOT NULL;
 
-UPDATE layoffs_staging2 t1
-JOIN layoffs_staging2 t2
-ON t1.company=t2.company
-SET t1.industry=t2.industry
+
+UPDATE layoffs_staging_2 t1
+JOIN layoffs_staging_2 t2
+ON t1.company = t2.company
+SET t1.industry = t2.industry
 WHERE t1.industry IS NULL 
-AND t2.industry IS NOT NULL
-;
+AND t2.industry IS NOT NULL;
 
--- Successfully matched 3 rows --
 
-SELECT *
-FROM layoffs_staging2
-WHERE industry IS NULL
-;
+SELECT * FROM layoffs_staging_2
+WHERE industry IS NULL;
 
-SELECT *
-FROM layoffs_staging2
+
+SELECT * FROM layoffs_staging_2
 WHERE total_laid_off IS NULL
-AND percentage_laid_off IS NULL
-;
+AND percentage_laid_off IS NULL;
 
--- Deleting rows where both variables of interest are NULL --
 
-DELETE
-FROM layoffs_staging2
+DELETE FROM layoffs_staging_2
 WHERE total_laid_off IS NULL
-AND percentage_laid_off IS NULL
-;
+AND percentage_laid_off IS NULL;
 
-SELECT *
-FROM layoffs_staging2
-;
+SELECT * FROM layoffs_staging_2
+WHERE total_laid_off IS NULL AND percentage_laid_off IS NULL;
 
--- Removing the row_num column we created to identify duplicates --
 
-ALTER TABLE layoffs_staging2
-DROP COLUMN row_num
-;
+ALTER TABLE layoffs_staging_2
+DROP COLUMN row_num;
 
-SELECT *
-FROM layoffs_staging2
-;
-
--- The data is ready for exploratory analysis --
+SELECT * FROM layoffs_staging_2;
+-- The data has been cleaned and is now ready for EDA
