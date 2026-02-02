@@ -1,81 +1,118 @@
-/*
+-- Housing Data Cleaning in SSMS --
 
-Cleaning Data in SQL Queries (Microsoft SSMS)
+use portfolio_project;
 
-*/
+select UniqueID, count(UniqueID) as count
+from dbo.NashvilleHousing
+group by UniqueID
+having count(UniqueID) != 1;
 
-select *
-from PortfolioProject.dbo.NashvilleHousing;
+select count(distinct UniqueID) as unique_count
+from dbo.NashvilleHousing;
+-- all 56477 rows have unique id
 
--- Standardizing Date Format to YYYY-MM-DD
+
+-- Standardizing Date Format
 
 select SaleDate
-from PortfolioProject.dbo.NashvilleHousing;
+from portfolio_project.dbo.NashvilleHousing;
 
-SELECT CAST(SaleDate AS DATE) AS SaleDateOnly
-FROM PortfolioProject.dbo.NashvilleHousing;
 
-ALTER TABLE PortfolioProject.dbo.NashvilleHousing
-ADD SaleDateOnly DATE;
+--SELECT SaleDate, convert(date, SaleDate) AS SaleDate
+--FROM portfolio_project.dbo.NashvilleHousing;
 
-UPDATE PortfolioProject.dbo.NashvilleHousing
-SET SaleDateOnly = CAST(SaleDate AS DATE);
+SELECT SaleDate, CAST(SaleDate AS DATE)
+FROM portfolio_project.dbo.NashvilleHousing;
 
-SELECT SaleDate, SaleDateOnly
-FROM PortfolioProject.dbo.NashvilleHousing;
+
+--UPDATE portfolio_project.dbo.NashvilleHousing
+--SET SaleDate = CAST(SaleDate AS DATE);
+
+
+--SELECT SaleDate
+--FROM dbo.NashvilleHousing;
+
+ALTER TABLE dbo.NashvilleHousing
+ADD SaleDateConverted DATE;
+
+select * from dbo.NashvilleHousing;
+-- Column has been added
+
+UPDATE dbo.NashvilleHousing
+SET SaleDateConverted = CONVERT(DATE, SaleDate);
+
+
+select SaleDate, SaleDateConverted
+from dbo.NashvilleHousing;
+-- date format has been standardized
+
 
 -- Populating Property Address Data
 
 select *
-from PortfolioProject.dbo.NashvilleHousing
-where PropertyAddress is null
-order by ParcelID;
-
--- Same parcel IDs have the same address so we will use this to populatate fields that have a parcel id but where address in null
-
-select PropertyAddress
-from PortfolioProject.dbo.NashvilleHousing
+from portfolio_project.dbo.NashvilleHousing
 where PropertyAddress is null;
 
+
+select PropertyAddress
+from portfolio_project.dbo.NashvilleHousing
+where PropertyAddress is null;
+-- we have 29 NULL values in PropertyAddress column
+
+
+-- Same ParcelID means same address so we can use that to populate null values in PropertyAddress column wherever possible
+-- SELF JOIN
 
 select a.ParcelID, a.PropertyAddress, b.ParcelID, b.PropertyAddress, isnull(a.PropertyAddress, b.PropertyAddress)
-from PortfolioProject.dbo.NashvilleHousing a
-join PortfolioProject.dbo.NashvilleHousing b
+from portfolio_project.dbo.NashvilleHousing a
+join portfolio_project.dbo.NashvilleHousing b
 	on a.ParcelID = b.ParcelID
 	and a.UniqueID <> b.UniqueID
-where a.PropertyAddress is null;
-
+where a.PropertyAddress is null
+-- ISNULL() is used to replace NULL with a specified value
 
 update a
-set PropertyAddress= isnull(a.PropertyAddress, b.PropertyAddress)
-from PortfolioProject.dbo.NashvilleHousing a
-join PortfolioProject.dbo.NashvilleHousing b
+set PropertyAddress = isnull(a.PropertyAddress, b.PropertyAddress)
+from portfolio_project.dbo.NashvilleHousing a
+join portfolio_project.dbo.NashvilleHousing b
 	on a.ParcelID = b.ParcelID
 	and a.UniqueID <> b.UniqueID
 where a.PropertyAddress is null;
+-- all 29 null values in PropertyAddress column have now been populated. Magic of SELF JOIN
 
--- nulls are now populated (there are no null values in PropertyAddress column)
 
-select PropertyAddress
-from PortfolioProject.dbo.NashvilleHousing
-where PropertyAddress is null;
-
--- Now we break down the Address into 2 separate columns (Address and City)
--- We can break it into even more columns if the State was also included in the address
+-- Breaking Address into Individual Columns
 
 select PropertyAddress
-from PortfolioProject.dbo.NashvilleHousing
+from portfolio_project.dbo.NashvilleHousing
 order by ParcelID;
 
 
-select substring(PropertyAddress, 1, charindex(',', PropertyAddress) - 1) as Address
--- - 1 to get rid of the ,
+SELECT SUBSTRING('1808  FOX CHASE DR, GOODLETTSVILLE', 1, 4)  
+-- SUBSTRING() extracts part of a string
+
+SELECT CHARINDEX(',', '1808  FOX CHASE DR, GOODLETTSVILLE')
+
+SELECT SUBSTRING('1808  FOX CHASE DR, GOODLETTSVILLE', 1, CHARINDEX(',', '1808  FOX CHASE DR, GOODLETTSVILLE') - 1)
+-- CHARINDEX() finds the position of a substring inside a string.
+
+select len('1808  FOX CHASE DR, GOODLETTSVILLE')
+
+select substring('1808  FOX CHASE DR, GOODLETTSVILLE', CHARINDEX(',', '1808  FOX CHASE DR, GOODLETTSVILLE') + 1, 
+len('1808  FOX CHASE DR, GOODLETTSVILLE'));
+--LEN() returns the number of characters in a string
+
+
+select 
+substring(PropertyAddress, 1, charindex(',', PropertyAddress) - 1) as Address
 , substring(PropertyAddress, charindex(',', PropertyAddress) + 1, len(PropertyAddress)) as Address
-from PortfolioProject.dbo.NashvilleHousing;
+from portfolio_project.dbo.NashvilleHousing;
 
 
 alter table NashvilleHousing
 add PropertySplitAddress nvarchar(255);
+
+select * from NashvilleHousing;
 
 update NashvilleHousing
 set PropertySplitAddress = substring(PropertyAddress, 1, charindex(',', PropertyAddress) - 1);
@@ -87,23 +124,29 @@ update NashvilleHousing
 set PropertySplitCity = substring(PropertyAddress, charindex(',', PropertyAddress) + 1, len(PropertyAddress));
 
 
-select *
-from PortfolioProject.dbo.NashvilleHousing;
-
--- Updating Owner Address now
+-- Updating Owner Address
 
 select OwnerAddress
-from PortfolioProject.dbo.NashvilleHousing;
+from portfolio_project.dbo.NashvilleHousing;
+
+
+SELECT  PARSENAME('7532  OAKHAVEN TRCE. NASHVILLE. TN', 1)
+-- PARSENAME() splits a dot-separated string and returns a specific part, counting from the right.
 
 select 
 parsename (replace(OwnerAddress,',','.'), 3)
 ,parsename (replace(OwnerAddress,',','.'), 2)
 ,parsename (replace(OwnerAddress,',','.'), 1)
-from PortfolioProject.dbo.NashvilleHousing;
+from portfolio_project.dbo.NashvilleHousing;
 
 
 alter table NashvilleHousing
 add OwnerSplitAddress nvarchar(255);
+
+SELECT * FROM NashvilleHousing
+where OwnerSplitState = 'TN';
+-- we need to trim it
+
 
 update NashvilleHousing
 set OwnerSplitAddress = parsename (replace(OwnerAddress,',','.'), 3);
@@ -121,22 +164,59 @@ update NashvilleHousing
 set OwnerSplitState = parsename (replace(OwnerAddress,',','.'), 1);
 
 
-select *
-from NashvilleHousing;
+-- TRIM
+select OwnerSplitState, TRIM(OwnerSplitState) from NashvilleHousing;
+
+update NashvilleHousing
+SET OwnerSplitState = TRIM(OwnerSplitState);
+
+SELECT * FROM NashvilleHousing
+where OwnerSplitState = 'TN';
+
+SELECT DISTINCT OwnerSplitCity from NashvilleHousing;
+
+select trim('OLD HICKORY');
+
+UPDATE NashvilleHousing
+SET OwnerSplitCity = TRIM(OwnerSplitCity);
+
+SELECT * FROM NashvilleHousing
+where OwnerSplitCity = 'Old Hickory';
+
+UPDATE NashvilleHousing
+SET PropertySplitCity = TRIM(PropertySplitCity);
+
+SELECT * FROM NashvilleHousing
+where PropertySplitCity = 'Old Hickory';
+
+select trim('100  WARREN DR');
+
+UPDATE NashvilleHousing
+SET PropertySplitAddress = TRIM(PropertySplitAddress);
+
+SELECT * FROM NashvilleHousing
+where PropertySplitAddress = '100  WARREN DR';
+
+SELECT * FROM NashvilleHousing
+where OwnerSplitAddress = '100  WARREN DR';
+
+select * from NashvilleHousing;
 
 -- Changing Y and N to Yes and No respectively in 'SoldAsVacant' column
 
 select distinct(SoldAsVacant), count(SoldAsVacant)
-from PortfolioProject.dbo.NashvilleHousing
+from portfolio_project.dbo.NashvilleHousing
 group by SoldAsVacant
 order by 2;
+
 
 SELECT 
     CASE 
         WHEN SoldAsVacant IN ('Y', 'Yes') THEN 'Yes' 
         ELSE 'No' 
     END AS SoldAsVacant
-FROM PortfolioProject.dbo.NashvilleHousing;
+FROM portfolio_project.dbo.NashvilleHousing;
+-- CASE lets you apply conditional logic in SQL
 
 
 ALTER TABLE NashvilleHousing
@@ -146,20 +226,22 @@ ALTER COLUMN SoldAsVacant VARCHAR(3);
 UPDATE NashvilleHousing
 SET SoldAsVacant = CASE 
         WHEN SoldAsVacant IN ('Y', 'Yes') THEN 'Yes' 
-        ELSE 'No'
+        ELSE 'No' 
     END;
 
 
 select distinct(SoldAsVacant), count(SoldAsVacant)
-from PortfolioProject.dbo.NashvilleHousing
+from portfolio_project.dbo.NashvilleHousing
 group by SoldAsVacant
 order by 2;
 
+
 -- Removing Duplicates
 
+-- CTE
+-- ROW_NUMBER() assigns a unique sequential number to each row within a result set.
 WITH RowNumCTE AS (
-    SELECT 
-        *, 
+    SELECT *, 
         ROW_NUMBER() OVER (
             PARTITION BY ParcelID,
                          PropertyAddress,
@@ -168,7 +250,7 @@ WITH RowNumCTE AS (
                          LegalReference
             ORDER BY UniqueID
         ) AS row_num
-    FROM PortfolioProject.dbo.NashvilleHousing
+    FROM portfolio_project.dbo.NashvilleHousing
 )
 SELECT *
 FROM RowNumCTE
@@ -186,25 +268,27 @@ WITH RowNumCTE AS (
                          LegalReference
             ORDER BY UniqueID
         ) AS row_num
-    FROM PortfolioProject.dbo.NashvilleHousing
+    FROM portfolio_project.dbo.NashvilleHousing
 )
-DELETE FROM PortfolioProject.dbo.NashvilleHousing
+DELETE FROM portfolio_project.dbo.NashvilleHousing
 WHERE UniqueID IN (
     SELECT UniqueID
     FROM RowNumCTE
     WHERE row_num > 1
 );
+-- This deletes the 104 duplicates that we had
 
--- Duplicates are now removed
 
+-- Deleting Unnecessary Columns
 
--- Now we delete any unused columns (not to be done on raw data in actual practice)
-
-alter table PortfolioProject.dbo.NashvilleHousing
+alter table NashvilleHousing
 drop column OwnerAddress, TaxDistrict, PropertyAddress;
 
 
-select *
-from PortfolioProject.dbo.NashvilleHousing;
+alter table NashvilleHousing
+drop column SaleDate;
 
--- The data has now been cleaned and can be used for visualizations
+select *
+from NashvilleHousing;
+
+-- The data is ready for visualization
